@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xactflow-design"
+dynamic = ["version"]
+description = "XactFlow exporter plugin that serializes an ipxact.Design into IEEE 1685-2022 IP-XACT Design XML."
+readme = "README.md"
+license = "LGPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Maxime Travaillard"},
+]
+requires-python = ">=3.9"
+dependencies = [
+    "xactflow",
+    "ipxact-compiler",
+    "lxml",
+]
+keywords = [
+    "IP-XACT", "IEEE 1685", "XML", "Compiler",
+    "XactFlow", "SystemVerilog", "Exporter",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Repository = "https://github.com/IP-XACT/XactFlow-design"
+Issues = "https://github.com/IP-XACT/XactFlow-design/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.entry-points."xactflow.exporters"]
+design = "xactflow_design:DesignExporter"
+
+[tool.setuptools.dynamic]
+version = {attr = "xactflow_design.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+xactflow_design = ["py.typed"]
