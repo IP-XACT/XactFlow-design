@@ -59,6 +59,11 @@ def write_design(design: Design) -> etree._Element:
 
 
 def _write_power_domain_link(link: PowerDomainLink) -> etree._Element:
+    if not link.internal_power_domain_refs:
+        raise ValueError(
+            f"power domain link to {link.external_power_domain_ref!r} requires at least one"
+            " internal power domain reference"
+        )
     elem = element("powerDomainLink")
     sub(elem, "externalPowerDomainReference", link.external_power_domain_ref)
     add_texts(elem, "internalPowerDomainReference", link.internal_power_domain_refs)

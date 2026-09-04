@@ -172,3 +172,18 @@ def test_monitor_interconnection_without_monitors_is_rejected():
     )
     with pytest.raises(ValueError, match="at least one monitor interface"):
         design_to_bytes(design)
+
+
+def test_power_domain_link_without_internal_refs_is_rejected():
+    design = ipxact.Design(
+        vlnv=ipxact.VLNV("example.org", "ip", "empty_power_domain_link", "1.0"),
+        component_instances=[
+            ipxact.ComponentInstance(
+                instance_name="a",
+                component_ref=ipxact.VLNVRef("example.org", "ip", "comp", "1.0"),
+                power_domain_links=[ipxact.PowerDomainLink(external_power_domain_ref="PD_MAIN")],
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="internal power domain reference"):
+        design_to_bytes(design)
