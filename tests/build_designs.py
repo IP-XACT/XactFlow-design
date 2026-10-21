@@ -10,10 +10,11 @@ import ipxact
 
 # ipxact-compiler serializes each vendorExtensions child with the namespace declarations that
 # are in scope at that point, so an extension read back out of a design always carries the
-# ipxact declaration too. Spelling it out here keeps round-trip comparison exact.
+# root's xsi and ipxact declarations too. Spelling them out here keeps round-trip comparison exact.
 VENDOR_EXTENSION = (
     '<vendor:note xmlns:vendor="http://example.org/vendor"'
-    ' xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022">kept verbatim</vendor:note>'
+    ' xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022"'
+    ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">kept verbatim</vendor:note>'
 )
 
 

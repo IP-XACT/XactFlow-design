@@ -21,6 +21,8 @@ from ipxact.schema.design import (
 
 from .common_writer import (
     NAMESPACE,
+    SCHEMA_LOCATION,
+    XSI_NAMESPACE,
     add_assertions,
     add_choices,
     add_document_name_group,
@@ -46,6 +48,7 @@ def write_design(design: Design) -> etree._Element:
     assertions, vendorExtensions.
     """
     root = element("design")
+    root.set(f"{{{XSI_NAMESPACE}}}schemaLocation", SCHEMA_LOCATION)
     add_document_name_group(root, design.vlnv, design.display_name, design.short_description, design.description)
     add_items(root, "componentInstances", design.component_instances, _write_component_instance)
     _add_interconnections(root, design.interconnections, design.monitor_interconnections)

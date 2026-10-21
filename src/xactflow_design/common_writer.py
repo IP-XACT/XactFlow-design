@@ -8,6 +8,8 @@ from ipxact.schema.common import ArrayBound, Assertion, Choice, Parameter, PartS
 from ipxact.schema.vlnv import VLNVRef
 
 NAMESPACE = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
+XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+SCHEMA_LOCATION = f"{NAMESPACE} {NAMESPACE}/index.xsd"
 _NSMAP = {"ipxact": NAMESPACE}
 
 T = TypeVar("T")
