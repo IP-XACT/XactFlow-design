@@ -26,7 +26,7 @@ class DesignExporter(Exporter):
 
     def export(self, subject: object, output_dir: Path, **options: object) -> None:
         if not isinstance(subject, ipxact.Design):
-            # ElaboratedDesign support is an agreed-on later addition, not an oversight.
+            # LinkedDesign support is an agreed-on later addition, not an oversight.
             raise TypeError(f"xactflow-design only supports ipxact.Design, got {type(subject).__name__}")
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)

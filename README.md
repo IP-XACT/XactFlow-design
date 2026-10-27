@@ -52,11 +52,11 @@ path = write_design_file(design, "out.xml") # writes and returns the path
 
 Once installed, the exporter registers itself under the `xactflow.exporters` entry point group as
 `design`, so `xactflow design ...` becomes available as a XactFlow CLI subcommand. Note that
-XactFlow's CLI always elaborates a design before calling an exporter, so for now the way to use
+XactFlow's CLI always links a design before calling an exporter, so for now the way to use
 this package is to call `DesignExporter().export(...)` directly on a `Design`.
 
 `export()` raises `TypeError` for anything that is not an `ipxact.Design`. Accepting an
-`ElaboratedDesign` (re-materializing a fully resolved design back to XML, or writing out a
+`LinkedDesign` (re-materializing a fully resolved design back to XML, or writing out a
 matching `designConfiguration` alongside it) is a planned later addition, not an oversight.
 
 ## Design notes
