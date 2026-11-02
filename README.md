@@ -31,9 +31,9 @@ from pathlib import Path
 import ipxact
 from xactflow_design import DesignExporter
 
-design = ipxact.parse_file("top_design.xml")
-# some manipulation on the design object can be done
-DesignExporter().export(design, Path("out")) # writes out/top_design.xml
+design = ipxact.parse_file("top_design.xml")   # or get one from an importer
+DesignExporter().export(design, Path("out"))
+# writes out/top_design.xml
 ```
 
 The output file is named after the design's VLNV name (`<vlnv.name>.xml`) inside `output_dir`,
@@ -46,14 +46,17 @@ file:
 from xactflow_design import design_to_bytes, write_design, write_design_file
 
 element = write_design(design)              # the lxml ipxact:design root element
-data = design_to_bytes(design)              # pretty-printed bytes, with an XML declaration
+data = design_to_bytes(design)              # pretty-printed bytes, with an XML declaration and a generated-by comment
 path = write_design_file(design, "out.xml") # writes and returns the path
 ```
 
 Once installed, the exporter registers itself under the `xactflow.exporters` entry point group as
-`design`, so `xactflow design ...` becomes available as a XactFlow CLI subcommand. Note that
-XactFlow's CLI always links a design before calling an exporter, so for now the way to use
-this package is to call `DesignExporter().export(...)` directly on a `Design`.
+`design`. From the XactFlow CLI, use it after an importer with `--then design`:
+
+```bash
+xactflow archidesc design.py --then design --output out/
+# writes out/soc.xml
+```
 
 `export()` raises `TypeError` for anything that is not an `ipxact.Design`. Accepting an
 `LinkedDesign` (re-materializing a fully resolved design back to XML, or writing out a
