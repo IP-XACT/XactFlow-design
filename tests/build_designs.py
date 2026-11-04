@@ -25,19 +25,27 @@ def build_wide_design() -> ipxact.Design:
         display_name="Wide coverage design",
         short_description="Every writable design section",
         description="Hand-built design exercising the writer end to end.",
+        xml_id="design_root",
         component_instances=[
             ipxact.ComponentInstance(
                 instance_name="cpu0",
-                component_ref=ipxact.VLNVRef("example.org", "ip", "cpu", "1.0", {"WIDTH": "32"}),
+                component_ref=ipxact.VLNVRef(
+                    "example.org", "ip", "cpu", "1.0", {"WIDTH": ipxact.Expression("32")}, xml_id="cpu0_ref"
+                ),
                 power_domain_links=[
                     ipxact.PowerDomainLink(
-                        external_power_domain_ref="PD_MAIN",
-                        internal_power_domain_refs=["PD_CORE", "PD_CACHE"],
+                        external_power_domain_ref=ipxact.Expression("PD_MAIN"),
+                        internal_power_domain_refs=[
+                            ipxact.TextValue("PD_CORE", xml_id="pd_core"),
+                            ipxact.TextValue("PD_CACHE"),
+                        ],
+                        xml_id="cpu0_pdl",
                     )
                 ],
                 display_name="CPU0",
                 short_description="the processor",
                 description="the main processor instance",
+                xml_id="cpu0",
                 vendor_extensions=[VENDOR_EXTENSION],
             ),
             ipxact.ComponentInstance(
@@ -51,19 +59,21 @@ def build_wide_design() -> ipxact.Design:
                 active_interface=ipxact.ActiveInterface(
                     component_instance_ref="cpu0",
                     bus_ref="initiator",
-                    exclude_ports=["debug_out"],
+                    exclude_ports=[ipxact.TextValue("debug_out", xml_id="excluded_debug")],
                     description="cpu side",
+                    xml_id="cpu_side",
                     vendor_extensions=[VENDOR_EXTENSION],
                 ),
                 other_active_interfaces=[
                     ipxact.ActiveInterface(component_instance_ref="mem0", bus_ref="target")
                 ],
                 hier_interfaces=[
-                    ipxact.HierInterface(bus_ref="top_bus", description="exported one level up")
+                    ipxact.HierInterface(bus_ref="top_bus", description="exported one level up", xml_id="top_side")
                 ],
                 display_name="CPU-memory bus",
                 short_description="main bus",
                 description="connects the cpu initiator to the memory target",
+                xml_id="cpu_mem_bus",
                 vendor_extensions=[VENDOR_EXTENSION],
             )
         ],
@@ -79,11 +89,13 @@ def build_wide_design() -> ipxact.Design:
                         bus_ref="target",
                         path="sub/instance",
                         description="a monitor tap",
+                        xml_id="mon_tap",
                         vendor_extensions=[VENDOR_EXTENSION],
                     )
                 ],
                 display_name="Bus monitor",
                 description="watches the main bus",
+                xml_id="bus_monitor",
                 vendor_extensions=[VENDOR_EXTENSION],
             )
         ],
@@ -97,10 +109,18 @@ def build_wide_design() -> ipxact.Design:
                         sub_port_refs=[
                             ipxact.SubPortReference(
                                 sub_port_ref="valid",
-                                part_select=ipxact.PartSelect(indices=["0", "1"]),
+                                part_select=ipxact.PartSelect(indices=[ipxact.Expression("0"), ipxact.Expression("1")]),
+                                xml_id="valid_sub_port",
                             )
                         ],
-                        part_select=ipxact.PartSelect(range_left="7", range_right="0"),
+                        part_select=ipxact.PartSelect(
+                            range=ipxact.Range(
+                                left=ipxact.Expression("7", minimum="0", maximum="7"),
+                                right=ipxact.Expression("0"),
+                            ),
+                            xml_id="rst_bits",
+                        ),
+                        xml_id="cpu0_rst",
                         vendor_extensions=[VENDOR_EXTENSION],
                     ),
                     ipxact.InternalPortReference(component_instance_ref="mem0", port_ref="rst_n"),
@@ -108,14 +128,18 @@ def build_wide_design() -> ipxact.Design:
                 external_port_references=[
                     ipxact.ExternalPortReference(
                         port_ref="ext_rst_n",
-                        part_select=ipxact.PartSelect(range_left="0", range_right="0"),
+                        part_select=ipxact.PartSelect(
+                            range=ipxact.Range(left=ipxact.Expression("0"), right=ipxact.Expression("0"))
+                        ),
+                        xml_id="ext_rst",
                         vendor_extensions=[VENDOR_EXTENSION],
                     )
                 ],
-                tied_value="open",
+                tied_value=ipxact.Expression("open"),
                 display_name="Reset net",
                 short_description="global reset",
                 description="ties every instance reset together",
+                xml_id="reset_net",
                 vendor_extensions=[VENDOR_EXTENSION],
             )
         ],
@@ -123,20 +147,27 @@ def build_wide_design() -> ipxact.Design:
             ipxact.Choice(
                 name="burst_choices",
                 enumerations=[
-                    ipxact.ChoiceEnumeration(value="1", text="single", help="single beat"),
-                    ipxact.ChoiceEnumeration(value="4"),
+                    ipxact.ChoiceEnumeration(
+                        value=ipxact.Expression("1", xml_id="single_beat"), text="single", help="single beat"
+                    ),
+                    ipxact.ChoiceEnumeration(value=ipxact.Expression("4")),
                 ],
+                xml_id="burst_choices",
             )
         ],
         parameters=[
             ipxact.Parameter(
                 name="BURST_LEN",
-                value="4",
+                value=ipxact.Expression("4"),
                 display_name="Burst length",
                 short_description="beats per burst",
                 description="the configured burst length",
-                vectors=[ipxact.Vector(left="3", right="0")],
-                arrays=[ipxact.ArrayBound(left="1", right="0")],
+                vectors=[
+                    ipxact.Vector(left=ipxact.Expression("3"), right=ipxact.Expression("0"), xml_id="burst_vector")
+                ],
+                arrays=[
+                    ipxact.ArrayBound(left=ipxact.Expression("1"), right=ipxact.Expression("0"), xml_id="burst_array")
+                ],
                 parameter_id="BURST_LEN",
                 prompt="Burst length:",
                 choice_ref="burst_choices",
@@ -149,15 +180,19 @@ def build_wide_design() -> ipxact.Design:
                 prefix="kilo",
                 unit="hertz",
                 resolve="user",
+                xml_id="burst_len",
+                other_attributes={"{http://example.org/vendor}tool": "kept"},
                 vendor_extensions=[VENDOR_EXTENSION],
             )
         ],
         assertions=[
             ipxact.Assertion(
                 name="burst_len_positive",
-                assert_expression="BURST_LEN > 0",
+                assert_expression=ipxact.Expression("BURST_LEN > 0"),
                 display_name="Burst length positive",
+                short_description="positive burst",
                 description="the burst length must be positive",
+                xml_id="burst_len_positive",
             )
         ],
         vendor_extensions=[VENDOR_EXTENSION],

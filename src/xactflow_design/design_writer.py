@@ -48,7 +48,7 @@ def write_design(design: Design) -> etree._Element:
     componentInstances, interconnections, adHocConnections, choices, parameters,
     assertions, vendorExtensions.
     """
-    root = element("design")
+    root = element("design", xml_id=design.xml_id)
     root.set(f"{{{XSI_NAMESPACE}}}schemaLocation", SCHEMA_LOCATION)
     add_document_name_group(root, design.vlnv, design.display_name, design.short_description, design.description)
     add_items(root, "componentInstances", design.component_instances, _write_component_instance)
@@ -65,17 +65,17 @@ def write_design(design: Design) -> etree._Element:
 def _write_power_domain_link(link: PowerDomainLink) -> etree._Element:
     if not link.internal_power_domain_refs:
         raise ValueError(
-            f"power domain link to {link.external_power_domain_ref!r} requires at least one"
+            f"power domain link to {link.external_power_domain_ref.value!r} requires at least one"
             " internal power domain reference"
         )
-    elem = element("powerDomainLink")
+    elem = element("powerDomainLink", xml_id=link.xml_id)
     sub(elem, "externalPowerDomainReference", link.external_power_domain_ref)
     add_texts(elem, "internalPowerDomainReference", link.internal_power_domain_refs)
     return elem
 
 
 def _write_component_instance(instance: ComponentInstance) -> etree._Element:
-    elem = element("componentInstance")
+    elem = element("componentInstance", xml_id=instance.xml_id)
     sub(elem, "instanceName", instance.instance_name)
     add_text(elem, "displayName", instance.display_name)
     add_text(elem, "shortDescription", instance.short_description)
@@ -87,7 +87,12 @@ def _write_component_instance(instance: ComponentInstance) -> etree._Element:
 
 
 def _write_internal_port_reference(ref: InternalPortReference) -> etree._Element:
-    elem = element("internalPortReference", portRef=ref.port_ref, componentInstanceRef=ref.component_instance_ref)
+    elem = element(
+        "internalPortReference",
+        portRef=ref.port_ref,
+        componentInstanceRef=ref.component_instance_ref,
+        xml_id=ref.xml_id,
+    )
     add_sub_port_references(elem, ref.sub_port_refs)
     add_part_select(elem, ref.part_select)
     write_vendor_extensions(elem, ref.vendor_extensions)
@@ -95,7 +100,7 @@ def _write_internal_port_reference(ref: InternalPortReference) -> etree._Element
 
 
 def _write_external_port_reference(ref: ExternalPortReference) -> etree._Element:
-    elem = element("externalPortReference", portRef=ref.port_ref)
+    elem = element("externalPortReference", portRef=ref.port_ref, xml_id=ref.xml_id)
     add_sub_port_references(elem, ref.sub_port_refs)
     add_part_select(elem, ref.part_select)
     write_vendor_extensions(elem, ref.vendor_extensions)
@@ -103,7 +108,7 @@ def _write_external_port_reference(ref: ExternalPortReference) -> etree._Element
 
 
 def _write_ad_hoc_connection(connection: AdHocConnection) -> etree._Element:
-    elem = element("adHocConnection")
+    elem = element("adHocConnection", xml_id=connection.xml_id)
     add_name_group(elem, connection.name, connection.display_name, connection.short_description, connection.description)
     add_text(elem, "tiedValue", connection.tied_value)
     if not connection.internal_port_references and not connection.external_port_references:
@@ -124,7 +129,12 @@ def _add_ad_hoc_connections(parent: etree._Element, connections: Sequence[AdHocC
 
 
 def _write_active_interface(tag: str, interface: ActiveInterface) -> etree._Element:
-    elem = element(tag, componentInstanceRef=interface.component_instance_ref, busRef=interface.bus_ref)
+    elem = element(
+        tag,
+        componentInstanceRef=interface.component_instance_ref,
+        busRef=interface.bus_ref,
+        xml_id=interface.xml_id,
+    )
     add_text(elem, "description", interface.description)
     if interface.exclude_ports:
         exclude_ports = sub(elem, "excludePorts")
@@ -134,7 +144,7 @@ def _write_active_interface(tag: str, interface: ActiveInterface) -> etree._Elem
 
 
 def _write_hier_interface(interface: HierInterface) -> etree._Element:
-    elem = element("hierInterface", busRef=interface.bus_ref)
+    elem = element("hierInterface", busRef=interface.bus_ref, xml_id=interface.xml_id)
     add_text(elem, "description", interface.description)
     write_vendor_extensions(elem, interface.vendor_extensions)
     return elem
@@ -146,7 +156,7 @@ def _write_interconnection(interconnection: Interconnection) -> etree._Element:
             f"interconnection {interconnection.name!r} requires a second active interface"
             " or a hierarchical interface"
         )
-    elem = element("interconnection")
+    elem = element("interconnection", xml_id=interconnection.xml_id)
     add_name_group(
         elem,
         interconnection.name,
@@ -164,7 +174,13 @@ def _write_interconnection(interconnection: Interconnection) -> etree._Element:
 
 
 def _write_monitor_interface_ref(tag: str, ref: MonitorInterfaceRef) -> etree._Element:
-    elem = element(tag, componentInstanceRef=ref.component_instance_ref, busRef=ref.bus_ref, path=ref.path)
+    elem = element(
+        tag,
+        componentInstanceRef=ref.component_instance_ref,
+        busRef=ref.bus_ref,
+        path=ref.path,
+        xml_id=ref.xml_id,
+    )
     add_text(elem, "description", ref.description)
     write_vendor_extensions(elem, ref.vendor_extensions)
     return elem
@@ -173,7 +189,7 @@ def _write_monitor_interface_ref(tag: str, ref: MonitorInterfaceRef) -> etree._E
 def _write_monitor_interconnection(interconnection: MonitorInterconnection) -> etree._Element:
     if not interconnection.monitor_interfaces:
         raise ValueError(f"monitor interconnection {interconnection.name!r} requires at least one monitor interface")
-    elem = element("monitorInterconnection")
+    elem = element("monitorInterconnection", xml_id=interconnection.xml_id)
     add_name_group(
         elem,
         interconnection.name,

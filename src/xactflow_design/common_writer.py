@@ -1,14 +1,25 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Mapping, Optional, Sequence, TypeVar
 
 from lxml import etree
 
-from ipxact.schema.common import ArrayBound, Assertion, Choice, Parameter, PartSelect, SubPortReference, Vector
+from ipxact.schema.common import (
+    ArrayBound,
+    Assertion,
+    Choice,
+    Expression,
+    Parameter,
+    PartSelect,
+    SubPortReference,
+    TextValue,
+    Vector,
+)
 from ipxact.schema.vlnv import VLNVRef
 
 NAMESPACE = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 SCHEMA_LOCATION = f"{NAMESPACE} {NAMESPACE}/index.xsd"
 _NSMAP = {"ipxact": NAMESPACE}
 
@@ -20,13 +31,30 @@ def qn(tag: str) -> str:
     return f"{{{NAMESPACE}}}{tag}"
 
 
-def element(tag: str, text: object = None, /, **attrs: object) -> etree._Element:
+def element(
+    tag: str,
+    text: object = None,
+    /,
+    *,
+    xml_id: Optional[str] = None,
+    other_attributes: Optional[Mapping[str, str]] = None,
+    nsmap: Optional[Mapping[str, str]] = None,
+    **attrs: object,
+) -> etree._Element:
     """Create an ipxact-namespaced element; attributes whose value is None are dropped.
 
-    tag and text are positional-only so that **attrs stays free for XML attributes.
+    tag and text are positional-only so that **attrs stays free for XML attributes. text may be an
+    Expression or a TextValue, whose minimum/maximum, xml:id and foreign attributes go on the
+    element too. other_attributes are keyed by their {namespace}name; nsmap declares extra
+    prefixes for them.
     """
-    elem = etree.Element(qn(tag), nsmap=_NSMAP)
-    for name, value in attrs.items():
+    if isinstance(text, Expression):
+        attrs = {"minimum": text.minimum, "maximum": text.maximum, **attrs}
+        xml_id, other_attributes, text = text.xml_id, text.other_attributes, text.value
+    elif isinstance(text, TextValue):
+        xml_id, text = text.xml_id, text.value
+    elem = etree.Element(qn(tag), nsmap={**_NSMAP, **(nsmap or {})})
+    for name, value in {**attrs, XML_ID: xml_id, **(other_attributes or {})}.items():
         if value is not None:
             elem.set(name, str(value))
     if text is not None:
@@ -110,9 +138,31 @@ def write_vendor_extensions(parent: etree._Element, extensions: Sequence[str]) -
             node.text = ""
 
 
+def _extension_prefixes(extensions: Sequence[str], other_attributes: Mapping[str, str]) -> dict[str, str]:
+    """The prefixes the vendor extensions use for the namespaces of other_attributes.
+
+    Declaring them on the element that carries both keeps each extension verbatim: otherwise
+    etree.cleanup_namespaces() merges the extension's declaration into the generated ns0 prefix
+    lxml gives the foreign attribute. Every element of an extension is looked at, since the
+    namespace may be declared below its root. The ipxact and xsi prefixes are never taken over.
+    """
+    namespaces = {name[1:].partition("}")[0] for name in other_attributes}
+    prefixes: dict[str, str] = {}
+    if not namespaces:
+        return prefixes
+    for extension in extensions:
+        for node in etree.fromstring(extension.encode("utf-8")).iter(etree.Element):
+            for prefix, namespace in node.nsmap.items():
+                if prefix not in (None, "ipxact", "xsi") and namespace in namespaces:
+                    prefixes.setdefault(prefix, namespace)
+    return prefixes
+
+
 def write_vlnv_ref(tag: str, ref: VLNVRef) -> etree._Element:
     """Write a configurableLibraryRefType element (VLNV as attributes, e.g. ipxact:componentRef)."""
-    elem = element(tag, vendor=ref.vendor, library=ref.library, name=ref.name, version=ref.version)
+    elem = element(
+        tag, vendor=ref.vendor, library=ref.library, name=ref.name, version=ref.version, xml_id=ref.xml_id
+    )
     if ref.config_element_values:
         values = sub(elem, "configurableElementValues")
         for reference_id, value in ref.config_element_values.items():
@@ -123,24 +173,21 @@ def write_vlnv_ref(tag: str, ref: VLNVRef) -> etree._Element:
 def add_part_select(parent: etree._Element, part_select: Optional[PartSelect]) -> None:
     if part_select is None:
         return
-    has_range = part_select.range_left is not None or part_select.range_right is not None
-    if has_range and (part_select.range_left is None or part_select.range_right is None):
-        raise ValueError("a part select range requires both range_left and range_right")
-    if not part_select.indices and not has_range:
+    if not part_select.indices and part_select.range is None:
         raise ValueError("a part select requires indices or a range")
-    elem = sub(parent, "partSelect")
+    elem = sub(parent, "partSelect", xml_id=part_select.xml_id)
     if part_select.indices:
         indices = sub(elem, "indices")
         add_texts(indices, "index", part_select.indices)
-    if has_range:
+    if part_select.range is not None:
         range_elem = sub(elem, "range")
-        sub(range_elem, "left", part_select.range_left)
-        sub(range_elem, "right", part_select.range_right)
+        sub(range_elem, "left", part_select.range.left)
+        sub(range_elem, "right", part_select.range.right)
 
 
 def add_sub_port_references(parent: etree._Element, refs: Sequence[SubPortReference]) -> None:
     for ref in refs:
-        elem = sub(parent, "subPortReference", subPortRef=ref.sub_port_ref)
+        elem = sub(parent, "subPortReference", subPortRef=ref.sub_port_ref, xml_id=ref.xml_id)
         add_part_select(elem, ref.part_select)
 
 
@@ -151,17 +198,18 @@ def _add_vectors(parent: etree._Element, vectors: Sequence[Vector]) -> None:
         return
     container = sub(parent, "vectors")
     for vector in vectors:
-        vector_elem = sub(container, "vector")
+        vector_elem = sub(container, "vector", xml_id=vector.xml_id)
         sub(vector_elem, "left", vector.left)
         sub(vector_elem, "right", vector.right)
 
 
 def _add_array_bounds(parent: etree._Element, arrays: Sequence[ArrayBound]) -> None:
+    # Same for arrayId: plain parameterType's arrays (configurableArrays) carry no arrayId.
     if not arrays:
         return
     container = sub(parent, "arrays")
     for array in arrays:
-        array_elem = sub(container, "array")
+        array_elem = sub(container, "array", xml_id=array.xml_id)
         sub(array_elem, "left", array.left)
         sub(array_elem, "right", array.right)
 
@@ -182,6 +230,9 @@ def _write_parameter(parameter: Parameter) -> etree._Element:
         prefix=parameter.prefix,
         unit=parameter.unit,
         resolve=parameter.resolve if parameter.resolve != "immediate" else None,
+        xml_id=parameter.xml_id,
+        other_attributes=parameter.other_attributes,
+        nsmap=_extension_prefixes(parameter.vendor_extensions, parameter.other_attributes),
     )
     add_name_group(elem, parameter.name, parameter.display_name, parameter.short_description, parameter.description)
     _add_vectors(elem, parameter.vectors)
@@ -202,7 +253,7 @@ def add_choices(parent: etree._Element, choices: Sequence[Choice]) -> None:
     for choice in choices:
         if not choice.enumerations:
             raise ValueError(f"choice {choice.name!r} requires at least one enumeration")
-        choice_elem = sub(container, "choice")
+        choice_elem = sub(container, "choice", xml_id=choice.xml_id)
         sub(choice_elem, "name", choice.name)
         for enumeration in choice.enumerations:
             sub(choice_elem, "enumeration", enumeration.value, text=enumeration.text, help=enumeration.help)
@@ -213,6 +264,12 @@ def add_assertions(parent: etree._Element, assertions: Sequence[Assertion]) -> N
         return
     container = sub(parent, "assertions")
     for assertion in assertions:
-        assertion_elem = sub(container, "assertion")
-        add_name_group(assertion_elem, assertion.name, assertion.display_name, description=assertion.description)
+        assertion_elem = sub(container, "assertion", xml_id=assertion.xml_id)
+        add_name_group(
+            assertion_elem,
+            assertion.name,
+            assertion.display_name,
+            assertion.short_description,
+            assertion.description,
+        )
         sub(assertion_elem, "assert", assertion.assert_expression)

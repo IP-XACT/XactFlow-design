@@ -71,8 +71,9 @@ matching `designConfiguration` alongside it) is a planned later addition, not an
   `monitorInterconnection`, whose `nameGroup` opens the element while the Python fields are
   trailing optionals. Every writer here follows the schema.
 - **Expressions are written verbatim.** Anything typed `Expression` in `ipxact-compiler`
-  (`tiedValue`, `externalPowerDomainReference`, a `parameter`'s `value`, a `partSelect`'s
-  `left`/`right`, ...) is a raw string and is emitted unchanged, never evaluated or reformatted.
+  (`tiedValue`, `externalPowerDomainReference`, a `parameter`'s `value`, the `left`/`right` of a
+  `partSelect`'s `range`, ...) has its `value` text emitted unchanged, never evaluated or reformatted,
+  together with its `minimum`/`maximum`, `xml:id` and foreign attributes.
 - **Vendor extensions stay identical.** Their content is not IP-XACT's to define, so each
   fragment is re-inserted as parsed.
 - **Defaults are omitted.** Attributes whose value equals the schema default
@@ -88,7 +89,7 @@ matching `designConfiguration` alongside it) is a planned later addition, not an
   an `adHocConnection` needs at least one internal or external port reference, a
   `monitorInterconnection` needs at least one monitor interface, a `powerDomainLink` needs at
   least one internal power domain reference, a `choice` needs at least one enumeration, and a
-  `partSelect` needs indices or a complete range. Rather than silently writing an incomplete
+  `partSelect` needs indices or a range. Rather than silently writing an incomplete
   element for any of these, the writer raises a specific error naming the missing field.
 
 ## Development

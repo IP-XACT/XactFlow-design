@@ -59,6 +59,29 @@ def test_vendor_extensions_are_not_reformatted(tmp_path):
     assert _write_and_reparse(reparsed, tmp_path) == reparsed
 
 
+def _design_with_tagged_parameter(extension: str) -> ipxact.Design:
+    parameter = ipxact.Parameter(
+        name="P",
+        value=ipxact.Expression("1"),
+        other_attributes={"{http://example.org/vendor}tool": "kept"},
+        vendor_extensions=[extension],
+    )
+    return ipxact.Design(vlnv=ipxact.VLNV("example.org", "ip", "tagged", "1.0"), parameters=[parameter])
+
+
+def test_foreign_attribute_keeps_a_nested_extension_prefix():
+    extension = '<a:outer xmlns:a="http://a"><v:inner xmlns:v="http://example.org/vendor">x</v:inner></a:outer>'
+    assert "<v:inner>x</v:inner>" in design_to_bytes(_design_with_tagged_parameter(extension)).decode()
+
+
+def test_extension_cannot_take_over_the_ipxact_prefix():
+    extension = '<ipxact:x xmlns:ipxact="http://example.org/vendor"/>'
+    root = etree.fromstring(design_to_bytes(_design_with_tagged_parameter(extension)))
+    parameter = root.find("ipxact:parameters/ipxact:parameter", {"ipxact": root.nsmap["ipxact"]})
+    assert parameter is not None
+    assert parameter.nsmap["ipxact"] == "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
+
+
 def test_interconnections_and_monitor_interconnections_share_one_container(design_schema, tmp_path):
     design = ipxact.Design(
         vlnv=ipxact.VLNV("example.org", "ip", "mixed", "1.0"),
@@ -88,26 +111,6 @@ def test_interconnections_and_monitor_interconnections_share_one_container(desig
     path = write_design_file(design, tmp_path / "mixed.xml")
     design_schema.assertValid(etree.parse(str(path)))
     assert ipxact.parse_file(path) == design
-
-
-def test_part_select_with_only_one_range_side_is_rejected():
-    design = ipxact.Design(
-        vlnv=ipxact.VLNV("example.org", "ip", "bad_range", "1.0"),
-        ad_hoc_connections=[
-            ipxact.AdHocConnection(
-                name="tie",
-                internal_port_references=[
-                    ipxact.InternalPortReference(
-                        component_instance_ref="a",
-                        port_ref="p",
-                        part_select=ipxact.PartSelect(range_left="7"),
-                    )
-                ],
-            )
-        ],
-    )
-    with pytest.raises(ValueError, match="range_left and range_right"):
-        design_to_bytes(design)
 
 
 def test_empty_part_select_is_rejected():
@@ -181,7 +184,7 @@ def test_power_domain_link_without_internal_refs_is_rejected():
             ipxact.ComponentInstance(
                 instance_name="a",
                 component_ref=ipxact.VLNVRef("example.org", "ip", "comp", "1.0"),
-                power_domain_links=[ipxact.PowerDomainLink(external_power_domain_ref="PD_MAIN")],
+                power_domain_links=[ipxact.PowerDomainLink(external_power_domain_ref=ipxact.Expression("PD_MAIN"))],
             )
         ],
     )
