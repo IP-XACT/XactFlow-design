@@ -33,11 +33,14 @@ from xactflow_design import DesignExporter
 
 design = ipxact.parse_file("top_design.xml")   # or get one from an importer
 DesignExporter().export(design, Path("out"))
-# writes out/top_design.xml
+# writes out/<vendor>_<library>_<name>_<version>.xml
 ```
 
-The output file is named after the design's VLNV name (`<vlnv.name>.xml`) inside `output_dir`,
-which is created if it does not exist.
+The output file is named after the design's full VLNV (`<vendor>_<library>_<name>_<version>.xml`)
+inside `output_dir`, which is created if it does not exist. Each VLNV part may only hold letters,
+digits, `.`, `_` and `-`; anything else raises `ValueError`. Exporting the same design again
+replaces its file, but a file of that name holding anything else (another VLNV, or not a design)
+raises `FileExistsError`.
 
 Lower-level entry points are available for callers that want the tree or the bytes rather than a
 file:
@@ -55,7 +58,7 @@ Once installed, the exporter registers itself under the `xactflow.exporters` ent
 
 ```bash
 xactflow archidesc design.py --then design --output out/
-# writes out/soc.xml
+# writes out/<vendor>_<library>_soc_<version>.xml
 ```
 
 `export()` raises `TypeError` for anything that is not an `ipxact.Design`. Accepting an
