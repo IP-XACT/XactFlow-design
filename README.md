@@ -64,6 +64,7 @@ xactflow archidesc design.py --then design --output out/
 `export()` raises `TypeError` for anything that is not an `ipxact.Design`. Accepting an
 `LinkedDesign` (re-materializing a fully resolved design back to XML, or writing out a
 matching `designConfiguration` alongside it) is a planned later addition, not an oversight.
+The exporter takes no options for now, so any `--option` / `--then-option` also raises `TypeError`.
 
 ## Design notes
 

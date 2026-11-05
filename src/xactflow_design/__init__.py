@@ -31,6 +31,8 @@ class DesignExporter(Exporter):
         if not isinstance(subject, ipxact.Design):
             # LinkedDesign support is an agreed-on later addition, not an oversight.
             raise TypeError(f"xactflow-design only supports ipxact.Design, got {type(subject).__name__}")
+        if options:
+            raise TypeError(f"xactflow-design takes no options, got: {', '.join(sorted(options))}")
         output_dir = Path(output_dir)
         path = output_dir / _file_name(subject.vlnv)
         _check_overwrite(path, subject.vlnv)
