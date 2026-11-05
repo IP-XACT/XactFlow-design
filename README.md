@@ -94,6 +94,12 @@ matching `designConfiguration` alongside it) is a planned later addition, not an
   least one internal power domain reference, a `choice` needs at least one enumeration, and a
   `partSelect` needs indices or a range. Rather than silently writing an incomplete
   element for any of these, the writer raises a specific error naming the missing field.
+- **`design.xsd`'s key, keyref and unique constraints raise `ValueError` too.** Component
+  instance names, interconnection and monitor interconnection names (one shared namespace), ad
+  hoc connection names, parameter ids and choice names must be unique; every `activeInterface`
+  of an `interconnection` and every `internalPortReference` must name an existing component
+  instance, and a parameter's `choiceRef` an existing choice. Simple types (`xs:Name`,
+  `xs:NMTOKEN`, a parameter's `type`) are not checked.
 
 ## Development
 

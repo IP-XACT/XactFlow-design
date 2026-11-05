@@ -116,6 +116,7 @@ def test_interconnections_and_monitor_interconnections_share_one_container(desig
 def test_empty_part_select_is_rejected():
     design = ipxact.Design(
         vlnv=ipxact.VLNV("example.org", "ip", "empty_part_select", "1.0"),
+        component_instances=[_instance("a")],
         ad_hoc_connections=[
             ipxact.AdHocConnection(
                 name="tie",
@@ -143,6 +144,7 @@ def test_choice_without_enumerations_is_rejected():
 def test_interconnection_with_only_the_primary_active_interface_is_rejected():
     design = ipxact.Design(
         vlnv=ipxact.VLNV("example.org", "ip", "lonely_interconnection", "1.0"),
+        component_instances=[_instance("a")],
         interconnections=[
             ipxact.Interconnection(
                 name="conn0",
@@ -189,4 +191,64 @@ def test_power_domain_link_without_internal_refs_is_rejected():
         ],
     )
     with pytest.raises(ValueError, match="internal power domain reference"):
+        design_to_bytes(design)
+
+
+def _instance(name: str) -> ipxact.ComponentInstance:
+    return ipxact.ComponentInstance(instance_name=name, component_ref=ipxact.VLNVRef("example.org", "ip", "comp", "1.0"))
+
+
+def _interconnection(name: str, instance: str = "a") -> ipxact.Interconnection:
+    return ipxact.Interconnection(
+        name=name,
+        active_interface=ipxact.ActiveInterface(component_instance_ref=instance, bus_ref="if0"),
+        hier_interfaces=[ipxact.HierInterface(bus_ref="top")],
+    )
+
+
+def _ad_hoc_connection(name: str, instance: str = "a") -> ipxact.AdHocConnection:
+    return ipxact.AdHocConnection(
+        name=name, internal_port_references=[ipxact.InternalPortReference(component_instance_ref=instance, port_ref="p")]
+    )
+
+
+def _monitor_interconnection(name: str) -> ipxact.MonitorInterconnection:
+    return ipxact.MonitorInterconnection(
+        name=name,
+        monitored_active_interface=ipxact.MonitorInterfaceRef(component_instance_ref="a", bus_ref="if0"),
+        monitor_interfaces=[ipxact.MonitorInterfaceRef(component_instance_ref="a", bus_ref="mon")],
+    )
+
+
+def _parameter(parameter_id: str, choice_ref=None) -> ipxact.Parameter:
+    return ipxact.Parameter(name=parameter_id, value=ipxact.Expression("1"), parameter_id=parameter_id, choice_ref=choice_ref)
+
+
+def _choice(name: str) -> ipxact.Choice:
+    return ipxact.Choice(name=name, enumerations=[ipxact.ChoiceEnumeration(value=ipxact.Expression("1"))])
+
+
+@pytest.mark.parametrize(
+    "fields, error",
+    [
+        ({"component_instances": [_instance("a"), _instance("a")]}, "duplicate component instance name 'a'"),
+        ({"interconnections": [_interconnection("c", instance="ghost")]}, "unknown component instance 'ghost'"),
+        ({"ad_hoc_connections": [_ad_hoc_connection("h", instance="ghost")]}, "unknown component instance 'ghost'"),
+        (
+            {"interconnections": [_interconnection("c")], "monitor_interconnections": [_monitor_interconnection("c")]},
+            "duplicate interconnection name 'c'",
+        ),
+        ({"ad_hoc_connections": [_ad_hoc_connection("h"), _ad_hoc_connection("h")]}, "duplicate ad hoc connection name 'h'"),
+        ({"parameters": [_parameter("P"), _parameter("P")]}, "duplicate parameter id 'P'"),
+        ({"choices": [_choice("ch"), _choice("ch")]}, "duplicate choice name 'ch'"),
+        ({"parameters": [_parameter("P", choice_ref="ghost")]}, "unknown choice 'ghost'"),
+    ],
+)
+def test_xsd_identity_constraints_are_enforced(fields, error):
+    design = ipxact.Design(
+        vlnv=ipxact.VLNV("example.org", "ip", "constraints", "1.0"), component_instances=[_instance("a")]
+    )
+    for name, value in fields.items():
+        setattr(design, name, value)
+    with pytest.raises(ValueError, match=error):
         design_to_bytes(design)

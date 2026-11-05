@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Iterable, Optional, Sequence, Tuple, Union
 
 from lxml import etree
 
@@ -48,6 +48,7 @@ def write_design(design: Design) -> etree._Element:
     componentInstances, interconnections, adHocConnections, choices, parameters,
     assertions, vendorExtensions.
     """
+    _check_identity_constraints(design)
     root = element("design", xml_id=design.xml_id)
     root.set(f"{{{XSI_NAMESPACE}}}schemaLocation", SCHEMA_LOCATION)
     add_document_name_group(root, design.vlnv, design.display_name, design.short_description, design.description)
@@ -60,6 +61,53 @@ def write_design(design: Design) -> etree._Element:
     write_vendor_extensions(root, design.vendor_extensions)
     etree.cleanup_namespaces(root, top_nsmap={"ipxact": NAMESPACE})
     return root
+
+
+def _check_unique(kind: str, values: Iterable[Optional[str]]) -> None:
+    seen = set()
+    for value in values:
+        if value in seen:
+            raise ValueError(f"duplicate {kind} {value!r}")
+        if value is not None:
+            seen.add(value)
+
+
+def _check_known(kind: str, known: Iterable[str], refs: Iterable[Tuple[str, Optional[str]]]) -> None:
+    known = set(known)
+    for owner, ref in refs:
+        if ref is not None and ref not in known:
+            raise ValueError(f"{owner} refers to unknown {kind} {ref!r}")
+
+
+def _check_identity_constraints(design: Design) -> None:
+    """Raise ValueError for what design.xsd's key, keyref and unique constraints reject."""
+    instance_names = [instance.instance_name for instance in design.component_instances]
+    choice_names = [choice.name for choice in design.choices]
+    _check_unique("component instance name", instance_names)
+    _check_unique(
+        "interconnection name",
+        [connection.name for connection in [*design.interconnections, *design.monitor_interconnections]],
+    )
+    _check_unique("ad hoc connection name", [connection.name for connection in design.ad_hoc_connections])
+    _check_unique("parameter id", [parameter.parameter_id for parameter in design.parameters])
+    _check_unique("choice name", choice_names)
+    _check_known(
+        "component instance",
+        instance_names,
+        [
+            (f"interconnection {connection.name!r}", interface.component_instance_ref)
+            for connection in design.interconnections
+            for interface in [connection.active_interface, *connection.other_active_interfaces]
+        ]
+        + [
+            (f"ad hoc connection {connection.name!r}", ref.component_instance_ref)
+            for connection in design.ad_hoc_connections
+            for ref in connection.internal_port_references
+        ],
+    )
+    _check_known(
+        "choice", choice_names, [(f"parameter {parameter.name!r}", parameter.choice_ref) for parameter in design.parameters]
+    )
 
 
 def _write_power_domain_link(link: PowerDomainLink) -> etree._Element:
