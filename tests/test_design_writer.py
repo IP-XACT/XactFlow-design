@@ -59,6 +59,31 @@ def test_vendor_extensions_are_not_reformatted(tmp_path):
     assert _write_and_reparse(reparsed, tmp_path) == reparsed
 
 
+def test_vendor_extensions_keep_processing_instructions_and_comments(tmp_path):
+    # ipxact-compiler returns a processing instruction in vendorExtensions as its own fragment.
+    extensions = ["<?acme-tool keep?>", "<!-- note -->", '<acme:setting xmlns:acme="http://acme.example/ext">on</acme:setting>']
+    design = ipxact.Design(vlnv=ipxact.VLNV("example.org", "ip", "pi", "1.0"), vendor_extensions=extensions)
+    assert "<ipxact:vendorExtensions>" + "".join(extensions) + "</ipxact:vendorExtensions>" in design_to_bytes(design).decode()
+
+    reparsed = _write_and_reparse(design, tmp_path)
+    assert reparsed.vendor_extensions[0] == "<?acme-tool keep?>"
+    assert _write_and_reparse(reparsed, tmp_path) == reparsed
+
+
+def test_vendor_extensions_keep_text_and_drop_an_xml_declaration():
+    design = ipxact.Design(
+        vlnv=ipxact.VLNV("example.org", "ip", "text", "1.0"),
+        vendor_extensions=["note", '<?xml version="1.0"?><x:a xmlns:x="http://example.org/x"/>', "tail"],
+    )
+    text = design_to_bytes(design).decode()
+    assert '<ipxact:vendorExtensions>note<x:a xmlns:x="http://example.org/x"/>tail</ipxact:vendorExtensions>' in text
+
+
+def test_foreign_attribute_with_a_processing_instruction_extension():
+    parameter_design = _design_with_tagged_parameter('<?acme-tool keep?>')
+    assert "<?acme-tool keep?>" in design_to_bytes(parameter_design).decode()
+
+
 def _design_with_tagged_parameter(extension: str) -> ipxact.Design:
     parameter = ipxact.Parameter(
         name="P",

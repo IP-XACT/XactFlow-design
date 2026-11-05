@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Callable, Mapping, Optional, Sequence, TypeVar
 
 from lxml import etree
@@ -22,6 +23,7 @@ XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 SCHEMA_LOCATION = f"{NAMESPACE} {NAMESPACE}/index.xsd"
 _NSMAP = {"ipxact": NAMESPACE}
+_XML_DECLARATION = re.compile(r"\s*<\?xml\s[^>]*\?>")
 
 T = TypeVar("T")
 
@@ -132,10 +134,29 @@ def write_vendor_extensions(parent: etree._Element, extensions: Sequence[str]) -
         return
     container = sub(parent, "vendorExtensions")
     for extension in extensions:
-        container.append(etree.fromstring(extension.encode("utf-8")))
+        wrapper = _parse_fragment(extension)
+        if wrapper.text:
+            if len(container):
+                container[-1].tail = (container[-1].tail or "") + wrapper.text
+            else:
+                container.text = (container.text or "") + wrapper.text
+        container.extend(list(wrapper))
     for node in container.iter():
         if len(node) and node.text is None:
             node.text = ""
+
+
+def _parse_fragment(fragment: str) -> etree._Element:
+    """Parse a vendor extension fragment inside a wrapper element.
+
+    A fragment may be a processing instruction, a comment or text, which fromstring() rejects
+    without a root element, so it is parsed inside a wrapper whose content is then moved out. An
+    XML declaration is only allowed at the start of a document, so it is dropped first.
+    """
+    declaration = _XML_DECLARATION.match(fragment)
+    if declaration:
+        fragment = fragment[declaration.end():]
+    return etree.fromstring(b"<w>" + fragment.encode("utf-8") + b"</w>")
 
 
 def _extension_prefixes(extensions: Sequence[str], other_attributes: Mapping[str, str]) -> dict[str, str]:
@@ -151,7 +172,7 @@ def _extension_prefixes(extensions: Sequence[str], other_attributes: Mapping[str
     if not namespaces:
         return prefixes
     for extension in extensions:
-        for node in etree.fromstring(extension.encode("utf-8")).iter(etree.Element):
+        for node in _parse_fragment(extension).iter(etree.Element):
             for prefix, namespace in node.nsmap.items():
                 if prefix not in (None, "ipxact", "xsi") and namespace in namespaces:
                     prefixes.setdefault(prefix, namespace)

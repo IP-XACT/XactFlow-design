@@ -63,6 +63,12 @@ def test_a_file_that_is_not_a_design_is_not_overwritten(tmp_path, content):
     assert (tmp_path / "example.org_ip_d_1.0.xml").read_text() == content
 
 
+def test_a_directory_with_the_file_name_is_not_overwritten(tmp_path):
+    (tmp_path / "example.org_ip_d_1.0.xml").mkdir()
+    with pytest.raises(FileExistsError):
+        DesignExporter().export(_design(), tmp_path)
+
+
 def test_exporter_rejects_unknown_options(tmp_path):
     with pytest.raises(TypeError, match="takes no options, got: bar, foo"):
         DesignExporter().export(_design(), tmp_path, foo="1", bar="2")

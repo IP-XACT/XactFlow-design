@@ -79,7 +79,7 @@ The exporter takes no options for now, so any `--option` / `--then-option` also 
   `partSelect`'s `range`, ...) has its `value` text emitted unchanged, never evaluated or reformatted,
   together with its `minimum`/`maximum`, `xml:id` and foreign attributes.
 - **Vendor extensions stay identical.** Their content is not IP-XACT's to define, so each
-  fragment is re-inserted as parsed.
+  fragment is re-inserted as parsed (only a leading XML declaration is dropped).
 - **Defaults are omitted.** Attributes whose value equals the schema default
   (`resolve="immediate"`, `type="string"`) are left out, which keeps the output close to
   hand-written IP-XACT and still round-trips exactly.
@@ -109,9 +109,9 @@ pip install -r requirements-dev.txt -e .
 pytest
 ```
 
-The tests round-trip the `tests/xml/top_design.xml` fixture and a
-hand-built design through the writer and back through the parser, validate the written XML against
-the `design.xsd` shipped with `ipxact-compiler` with `lxml.etree.XMLSchema.assertValid`, and re-run
+The tests round-trip the `tests/xml/top_design.xml` fixture and a hand-built design through the
+writer and back through the parser, validate the written XML against the `design.xsd` shipped with
+`ipxact-compiler` with `lxml.etree.XMLSchema.assertValid`, and re-run
 `xactflow.SCR.run_single_doc_checks` on the result.
 
 ## License

@@ -51,7 +51,7 @@ def _file_name(vlnv: ipxact.VLNV) -> str:
     """<vendor>_<library>_<name>_<version>.xml, each part only made of letters, digits, '.', '_' and '-'."""
     parts = _vlnv_parts(vlnv)
     if not all(_FILE_NAME_PART.fullmatch(part) for part in parts):
-        raise ValueError(f"VLNV {':'.join(parts)!r} cannot be used as a file name")
+        raise ValueError(f"VLNV {str(vlnv)!r} cannot be used as a file name")
     return "_".join(parts) + ".xml"
 
 
@@ -67,7 +67,7 @@ def _check_overwrite(path: Path, vlnv: ipxact.VLNV) -> None:
         root = etree.parse(str(path)).getroot()
         existing = [root.findtext(qn(tag)) for tag in ("vendor", "library", "name", "version")]
         same = root.tag == qn("design") and existing == _vlnv_parts(vlnv)
-    except etree.XMLSyntaxError:
+    except (etree.XMLSyntaxError, OSError):
         same = False
     if not same:
-        raise FileExistsError(f"{path} already exists and is not the design {':'.join(_vlnv_parts(vlnv))}")
+        raise FileExistsError(f"{path} already exists and is not the design {vlnv}")
