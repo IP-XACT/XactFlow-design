@@ -102,11 +102,10 @@ pip install -r requirements-dev.txt -e .
 pytest
 ```
 
-The tests round-trip both `ipxact-compiler`'s `top_design.xml` fixture and a hand-built design
-through the writer and back through the parser, validate the written XML against `design.xsd`
-with `lxml.etree.XMLSchema.assertValid`, and re-run `xactflow.SCR.run_single_doc_checks` on the
-result. They expect `ipxact-compiler` and the IEEE 1685-2022 schema (`IEEE_1685-2022/schema/
-1685-2022/`) as sibling checkouts; set `IPXACT_SCHEMA_DIR` to point the schema somewhere else.
+The tests round-trip the `tests/xml/top_design.xml` fixture and a
+hand-built design through the writer and back through the parser, validate the written XML against
+the `design.xsd` shipped with `ipxact-compiler` with `lxml.etree.XMLSchema.assertValid`, and re-run
+`xactflow.SCR.run_single_doc_checks` on the result.
 
 ## License
 
